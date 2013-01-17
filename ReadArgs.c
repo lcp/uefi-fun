@@ -59,8 +59,6 @@ efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
 	EFI_STATUS status;
 	int argc, i;
 	CHAR16 **ARGV;
-	EFI_INPUT_KEY key;
-	UINTN EventIndex;
 	CHAR16 descr[64];
 
 	InitializeLib(image, systab);
@@ -77,10 +75,7 @@ efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
 		Print (L"argv[%d]: %s\n", i, ARGV[i]);
 
 	Print (L"\nPress any key to continue\n");
-
-	uefi_call_wrapper(BS->WaitForEvent, 3, 1, &ST->ConIn->WaitForKey,
-                          &EventIndex);
-	uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &key);
+	Pause();
 
 	return EFI_SUCCESS;
 }
