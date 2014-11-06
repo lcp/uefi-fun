@@ -5,6 +5,15 @@
 #include <efi.h>
 #include <efilib.h>
 
+VOID
+efi_pause ()
+{
+	EFI_INPUT_KEY Key;
+
+	WaitForSingleEvent (ST->ConIn->WaitForKey, 0);
+	uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key);
+}
+
 EFI_STATUS
 argsplit(EFI_HANDLE image, int *argc, CHAR16*** ARGV)
 {
@@ -75,7 +84,7 @@ efi_main (EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
 		Print (L"argv[%d]: %s\n", i, ARGV[i]);
 
 	Print (L"\nPress any key to continue\n");
-	Pause();
+	efi_pause();
 
 	return EFI_SUCCESS;
 }
