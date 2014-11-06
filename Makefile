@@ -1,4 +1,4 @@
-EFIFILES = ReadArgs.efi
+EFIFILES = ReadArgs.efi HashTest.efi InputOutput.efi
 
 export TOPDIR	:= $(shell pwd)/
 
