@@ -1,4 +1,4 @@
-EFIFILES = ReadArgs.efi HashTest.efi InputOutput.efi
+EFIFILES = ReadArgs.efi HashTest.efi InputOutput.efi SetMode.efi QueryTextIn.efi
 
 export TOPDIR	:= $(shell pwd)/
 
