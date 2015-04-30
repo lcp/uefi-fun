@@ -27,13 +27,28 @@ sub read_file($)
 }
 
 sub print_guid(\@) {
-	my (@guid) = @_;
-	my $i;
+	my ($guid_ref) = @_;
 
-	printf "0x%08x, 0x%04x, 0x%04x", $guid[0], $guid[1], $guid[2];
-	for $i (3..10) {
-		printf ", 0x%02x", $guid[$i];
+	printf "0x%08x, 0x%04x, 0x%04x", $$guid_ref[0], $$guid_ref[1], $$guid_ref[2];
+	for my $i (3..10) {
+		printf ", 0x%02x", $$guid_ref[$i];
 	}
+}
+
+sub cmp_guid(\@\@) {
+	my ($ref1, $ref2) = @_;
+
+	if ($#$ref1 != 10 || $#$ref2 != 10) {
+		return 0;
+	}
+
+	for my $i (0..10) {
+		if ($$ref1[$i] != $$ref2[$i]) {
+			return 0;
+		}
+	}
+
+	return 1;
 }
 
 if ($#ARGV != 0) {
@@ -112,9 +127,9 @@ while ($remain > 0) {
 	my $type = "Unknown";
 
 	print "SignatureType: ";
-	if (@guid ~~ @EFI_CERT_SHA256_GUID) {
+	if (cmp_guid(@guid, @EFI_CERT_SHA256_GUID)) {
 		$type = "CERT_SHA256";
-	} elsif (@guid ~~ @EFI_CERT_X509_GUID){
+	} elsif (cmp_guid(@guid, @EFI_CERT_X509_GUID)){
 		$type = "CERT_X509";
 	}
 	print "$type\n";
@@ -151,7 +166,7 @@ while ($remain > 0) {
 		my $data = substr($sig_data, 16, $sig_size - 16);
 
 		print "\tOwner: ";
-		&print_guid(@owner);
+		print_guid(@owner);
 		print "\n";
 
 		# print data
