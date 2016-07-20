@@ -1,29 +1,14 @@
-EFISIGNED = $(patsubst %.efi,%-signed.efi,$(EFIFILES))
-MANPAGES = $(patsubst doc/%.1.in,doc/%.1,$(wildcard doc/*.1.in))
-HELP2MAN = help2man
 ARCH	= $(shell uname -m)
 INCDIR	   = -I$(TOPDIR)include/ -I/usr/include/efi -I/usr/include/efi/$(ARCH) -I/usr/include/efi/protocol
 CPPFLAGS   = -DCONFIG_$(ARCH)
 CFLAGS	   = -O2 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -fno-stack-protector
 LDFLAGS	   = -nostdlib
 CRTOBJS		= /usr/lib64/crt0-efi-$(ARCH).o
-# there's a bug in the gnu tools ... the .reloc section has to be
-# aligned otherwise the file alignment gets screwed up
 LDSCRIPT	= /usr/lib64/elf_$(ARCH)_efi.lds
 LDFLAGS		+= -T $(LDSCRIPT) -shared -Bsymbolic $(CRTOBJS) -L /usr/lib64
 LOADLIBES	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
 FORMAT		= efi-app-$(ARCH)
 OBJCOPY		= objcopy
-MYGUID		= 11111111-2222-3333-4444-123456789abc
-INSTALL		= install
-BINDIR		= $(DESTDIR)/usr/bin
-MANDIR		= $(DESTDIR)/usr/share/man/man1
-EFIDIR		= $(DESTDIR)/usr/share/efitools/efi
-DOCDIR		= $(DESTDIR)/usr/share/efitools
-
-ifeq ($(ARCH),x86_64)
-  CFLAGS += -DEFI_FUNCTION_WRAPPER
-endif
 
 %.efi: %.so
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
@@ -34,14 +19,5 @@ endif
 	# check we have no undefined symbols
 	nm -D $@ | grep ' U ' && exit 1 || exit 0
 
-%.h: %.auth
-	xxd -i $< > $@
-
 %.o: %.c
 	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-%.efi.o: %.c
-	$(CC) $(INCDIR) $(CFLAGS) $(CPPFLAGS) -DBUILD_EFI -c $< -o $@
-
-%.a:
-	ar rcv $@ $^
