@@ -64,10 +64,11 @@ my($e_magic) = unpack("v", substr($pe_image, 0, 2));
 die "not a EFI Image\n" unless ($e_magic == 0x5A4D);
 
 @header_name = qw(Magic BytesOnLastPage Pages Relocations SizeOfHeader
-		  MinAlloc MaxAlloc SS SP Checksum IP CS RelocationTable
-		  OverlayNumber);
-@padding = ("\t\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t", "\t\t", "\t\t", "\t\t\t",
-	    "\t\t\t", "\t\t", "\t\t\t", "\t\t\t", "\t\t", "\t\t");
+		  MinAlloc MaxAlloc InitialSS InitialSP Checksum InitialIP
+		  InitialCS RelocationTable OverlayNumber);
+@padding = ("\t\t\t\t", "\t\t\t", "\t\t\t\t", "\t\t\t", "\t\t\t", "\t\t\t",
+	    "\t\t\t", "\t\t\t", "\t\t\t", "\t\t\t", "\t\t\t", "\t\t\t",
+	    "\t\t\t", "\t\t\t");
 @format = qw(0x%0X %d %d 0x%0X %d %d %d 0x%0X 0x%0X 0x%0X 0x%0X 0x%0X 0x%0X %d);
 (@efi_dos_header1) = unpack("v14", substr($pe_image, 0, 28));
 for (my $i = 0; $i <= $#efi_dos_header1; $i++) {
@@ -75,7 +76,7 @@ for (my $i = 0; $i <= $#efi_dos_header1; $i++) {
 }
 
 @header_name = qw(OEM_ID OEM_INFO);
-@padding = ("\t\t\t", "\t\t");
+@padding = ("\t\t\t\t", "\t\t\t");
 @format = qw(0x%0X 0x%0X);
 (@efi_dos_header2) = unpack("v14", substr($pe_image, 36, 4));
 for (my $i = 0; $i <= $#efi_dos_header2; $i++) {
@@ -83,7 +84,7 @@ for (my $i = 0; $i <= $#efi_dos_header2; $i++) {
 }
 
 ($e_lfanew) = unpack("V", substr($pe_image, 60, 4));
-printf "NewHeaderAddress\t0x%0X\n", $e_lfanew;
+printf "NewHeaderAddress\t\t0x%0X\n", $e_lfanew;
 
 
 # Match Signature 'P''E''\0''\0'
@@ -104,7 +105,7 @@ my @coff_header;
 #   UINT16  Characteristics;
 @header_name = qw(Machine NumberOfSections TimeDateStamp PointerToSymbolTable
 		  NumberOfSymbols SizeOfOptionalHeader Characteristics);
-@padding = ("\t\t\t", "\t", "\t\t", "\t", "\t\t", "\t", "\t\t");
+@padding = ("\t\t\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t\t");
 @format = qw(0x%X %d 0x%X 0x%X %d %d 0x%X);
 (@coff_header) = unpack("v2V3v2", substr($pe_image, $e_lfanew + 4, 20));
 for (my $i = 0; $i <= $#coff_header; $i++) {
@@ -141,7 +142,8 @@ if ($pe32plus == 1) {
 	@header_name = qw(Magic MajorLinkerVersion MinorLinkerVersion SizeOfCode
        			  SizeOfInitializedData SizeOfUninitializedData
 			  AddressOfEntryPoint BaseOfCode);
-	@padding = ("\t\t\t\t", "\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t", "\t\t", "\t\t\t", "\t\t\t");
+	@padding = ("\t\t\t\t", "\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t", "\t\t",
+		    "\t\t\t", "\t\t\t");
 	@format = qw(0x%X %d %d %d %d %d 0x%X 0x%X);
 	(@optional_header1) = unpack("vC2V5", substr($pe_image, $e_lfanew+24, 24));
 
@@ -203,11 +205,13 @@ if ($pe32plus == 1) {
 	@header_name = qw(Magic MajorLinkerVersion MinorLinkerVersion SizeOfCode
 			  SizeOfInitializedData SizeOfUninitializedData
 			  AddressOfEntryPoint BaseOfCode BaseOfData);
+	@padding = ("\t\t\t\t", "\t\t", "\t\t", "\t\t\t", "\t\t", "\t\t", "\t\t",
+		    "\t\t\t", "\t\t\t", "\t\t\t");
 	@format = qw(0x%X %d %d %d %d %d 0x%X 0x%X 0x%X);
 	(@optional_header1) = unpack("vC2V5", substr($pe_image, $e_lfanew+24, 28));
 
 	for (my $i = 0; $i <= $#optional_header1; $i++) {
-		printf "$header_name[$i]: $format[$i]\n", $optional_header1[$i];
+		printf "$header_name[$i]$padding[$i]$format[$i]\n", $optional_header1[$i];
 	}
 
 	#   Optional Header Windows-Specific Fields
@@ -240,6 +244,9 @@ if ($pe32plus == 1) {
 			  Subsystem DllCharacteristics SizeOfStackReserve
 			  SizeOfStackCommit SizeOfHeapReserve SizeOfHeapCommit
 			  LoaderFlags NumberOfRvaAndSizes);
+	@padding = ("\t\t\t", "\t\t", "\t\t\t", "\t", "\t", "\t\t", "\t\t", "\t\t",
+		    "\t\t", "\t\t", "\t\t\t", "\t\t\t", "\t\t\t", "\t\t\t", "\t\t",
+		    "\t\t", "\t\t", "\t\t", "\t\t", "\t\t\t", "\t\t");
 	@format = qw(0x%X 0x%X 0x%X %d %d %d %d %d %d 0x%04X %d %d 0x%X 0x%X 0x%X %d
        		     %d %d %d 0x%X %d);
 	(@optional_header2) = unpack("V3v6V4v2V6", substr($pe_image, $e_lfanew+56, 68));
@@ -248,7 +255,7 @@ if ($pe32plus == 1) {
 }
 
 for (my $i = 0; $i <= $#optional_header2; $i++) {
-	printf "$header_name[$i]@padding[$i]$format[$i]\n", $optional_header2[$i];
+	printf "$header_name[$i]$padding[$i]$format[$i]\n", $optional_header2[$i];
 }
 
 my $v_address;
