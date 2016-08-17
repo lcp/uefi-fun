@@ -85,18 +85,38 @@ my $output = '';
 my $help = '';
 
 GetOptions(
-	"major-os=i" => \$major_os,
-	"minor-os=i" => \$minor_os,
-	"major-image=i" => \$major_image,
-	"minor-image=i" => \$minor_image,
-	"major-subsys=i" => \$major_subsys,
-	"minor-subsys=i" => \$minor_subsys,
+	"major-os=o" => \$major_os,
+	"minor-os=o" => \$minor_os,
+	"major-image=o" => \$major_image,
+	"minor-image=o" => \$minor_image,
+	"major-subsys=o" => \$major_subsys,
+	"minor-subsys=o" => \$minor_subsys,
 	"output=s" => \$output,
 	"help|h" => \$help,
 ) or usage(1);
 
 usage(1) unless @ARGV;
 usage(0) if ($help);
+
+sub not_ushort($)
+{
+	my ($number) = @_;
+	if ($number and ($number < 0 or $number > 65535)) {
+		return 1;
+	}
+	return 0;
+}
+
+sub check_args
+{
+	return 0 if not_ushort($major_os);
+	return 0 if not_ushort($minor_os);
+	return 0 if not_ushort($major_image);
+	return 0 if not_ushort($minor_image);
+	return 0 if not_ushort($major_subsys);
+	return 0 if not_ushort($minor_subsys);
+	return 1;
+}
 
 sub read_file($)
 {
@@ -148,6 +168,8 @@ sub set_version($)
 	my $packed = pack("v", $value);
 	substr($$image_ptr, $offset, 2, $packed);
 }
+
+die "invalid arguments\n" unless check_args;
 
 my ($file) = @ARGV;
 my $pe_image = read_file($file) if ($file);
