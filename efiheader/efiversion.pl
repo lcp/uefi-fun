@@ -2,11 +2,11 @@
 
 =head1 efiversion.pl
 
-efiversion.pl - modify the version fields in the EFI image
+efiversion.pl - show or modify the version fields in the EFI image
 
 =head1 SYNOPSIS
 
-efiversion.pl [OPTIONS] -i input.efi -o output.efi
+efiversion.pl [OPTIONS] FILE
 
 =head1 OPTIONS
 
@@ -36,13 +36,9 @@ assign the major subsystem version
 
 assign the minor subsystem version
 
-=item B<--input=FILE, -i FILE>
-
-the input file
-
 =item B<--output=FILE, -o FILE>
 
-the output file
+write the result to the file
 
 =item B<--help, -h>
 
@@ -53,6 +49,12 @@ print help
 =head1 DESCRIPTION
 
 A script to modify the version fields in the header of the EFI image
+
+Show the versions:
+$ efiversion.pl sample.efi
+
+Modify the versions:
+$ efiversion.pl --major-os=1 --minor-os=2 -o out.efi sample.efi
 
 =cut
 
@@ -72,13 +74,13 @@ sub usage($) {
 	}
 }
 
+my $options;
 my $major_os = '';
 my $minor_os = '';
 my $major_image = '';
 my $minor_image = '';
 my $major_subsys = '';
 my $minor_subsys = '';
-my $input = '';
 my $output = '';
 my $help = '';
 
@@ -89,12 +91,12 @@ GetOptions(
 	"minor-image=i" => \$minor_image,
 	"major-subsys=i" => \$major_subsys,
 	"minor-subsys=i" => \$minor_subsys,
-	"input=s" => \$input,
 	"output=s" => \$output,
 	"help|h" => \$help,
 ) or usage(1);
 
-usage(1) if ($help);
+usage(1) unless @ARGV;
+usage(0) if ($help);
 
 sub read_file($)
 {
@@ -147,15 +149,10 @@ sub set_version($)
 	substr($$image_ptr, $offset, 2, $packed);
 }
 
-my $pe_image;
-
-if ($input) {
-	$pe_image = read_file($input);
-} else {
-	usage(1);
-}
-
+my ($file) = @ARGV;
+my $pe_image = read_file($file) if ($file);
 my $e_lfanew = find_header_address($pe_image);
+
 my $os_offset = $e_lfanew+64;
 my $image_offset = $e_lfanew+68;
 my $subsys_offset = $e_lfanew+72;
