@@ -12,27 +12,27 @@ efiversion.pl [OPTIONS] -i input.efi -o output.efi
 
 =over 4
 
-=item B<--major-os-version=NUMBER>
+=item B<--major-os=NUMBER>
 
 assign the major OS version
 
-=item B<--minor-os-version=NUMBER>
+=item B<--minor-os=NUMBER>
 
 assign the minor OS version
 
-=item B<--major-image-version=NUMBER>
+=item B<--major-image=NUMBER>
 
 assign the major image version
 
-=item B<--minor-image-version=NUMBER>
+=item B<--minor-image=NUMBER>
 
 assign the minor image version
 
-=item B<--major-subsys-version=NUMBER>
+=item B<--major-subsys=NUMBER>
 
 assign the major subsystem version
 
-=item B<--minor-subsys-version=NUMBER>
+=item B<--minor-subsys=NUMBER>
 
 assign the minor subsystem version
 
@@ -83,12 +83,12 @@ my $output = '';
 my $help = '';
 
 GetOptions(
-	"major-os-version=i" => \$major_os,
-	"minor-os-version=i" => \$minor_os,
-	"major-image-version=i" => \$major_image,
-	"minor-image-version=i" => \$minor_image,
-	"major-subsys-version=i" => \$major_subsys,
-	"minor-subsys-version=i" => \$minor_subsys,
+	"major-os=i" => \$major_os,
+	"minor-os=i" => \$minor_os,
+	"major-image=i" => \$major_image,
+	"minor-image=i" => \$minor_image,
+	"major-subsys=i" => \$major_subsys,
+	"minor-subsys=i" => \$minor_subsys,
 	"input=s" => \$input,
 	"output=s" => \$output,
 	"help|h" => \$help,
@@ -113,6 +113,23 @@ sub read_file($)
 	return $contents;
 }
 
+sub find_header_address($)
+{
+	my ($image) = @_;
+
+	# e_magic must be 'M''Z'
+	my ($e_magic) = unpack("v", substr($image, 0, 2));
+	die "not a EFI Image\n" unless ($e_magic == 0x5A4D);
+
+	my ($e_lfanew) = unpack("V", substr($image, 60, 4));
+
+	# Match Signature 'P''E''\0''\0'
+	my ($Signature) = unpack("V", substr($image, $e_lfanew, 4));
+	die "not a PE Image\n" unless ($Signature == 0x4550);
+
+	return $e_lfanew;
+}
+
 sub write_file($)
 {
 	my ($file, $contents) = @_;
@@ -123,6 +140,13 @@ sub write_file($)
 	close(FD) || die $file;
 }
 
+sub set_version($)
+{
+	my ($image_ptr, $offset, $value) = @_;
+	my $packed = pack("v", $value);
+	substr($$image_ptr, $offset, 2, $packed);
+}
+
 my $pe_image;
 
 if ($input) {
@@ -131,52 +155,25 @@ if ($input) {
 	usage(1);
 }
 
-# e_magic must be 'M''Z'
-my($e_magic) = unpack("v", substr($pe_image, 0, 2));
-die "not a EFI Image\n" unless ($e_magic == 0x5A4D);
-
-my($e_lfanew) = unpack("V", substr($pe_image, 60, 4));
-
-# Match Signature 'P''E''\0''\0'
-my($Signature) = unpack("V", substr($pe_image, $e_lfanew, 4));
-die "not a PE Image\n" unless ($Signature == 0x4550);
-
+my $e_lfanew = find_header_address($pe_image);
 my $os_offset = $e_lfanew+64;
 my $image_offset = $e_lfanew+68;
 my $subsys_offset = $e_lfanew+72;
 
 if ($output) {
 	# Write the file
-	if ($major_os) {
-		my $packed = pack("v", $major_os);
-		substr($pe_image, $os_offset, 2, $packed);
-	}
-	if ($minor_os) {
-		my $packed = pack("v", $minor_os);
-		substr($pe_image, $os_offset+2, 2, $packed);
-	}
-	if ($major_image) {
-		my $packed = pack("v", $major_image);
-		substr($pe_image, $image_offset, 2, $packed);
-	}
-	if ($minor_image) {
-		my $packed = pack("v", $minor_image);
-		substr($pe_image, $image_offset+2, 2, $packed);
-	}
-	if ($major_subsys) {
-		my $packed = pack("v", $major_subsys);
-		substr($pe_image, $subsys_offset, 2, $packed);
-	}
-	if ($minor_subsys) {
-		my $packed = pack("v", $minor_subsys);
-		substr($pe_image, $subsys_offset+2, 2, $packed);
-	}
+	&set_version(\$pe_image, $os_offset, $major_os) if ($major_os);
+	&set_version(\$pe_image, $os_offset+2, $minor_os) if ($minor_os);
+	&set_version(\$pe_image, $image_offset, $major_image) if ($major_image);
+	&set_version(\$pe_image, $image_offset+2, $minor_image) if ($minor_image);
+	&set_version(\$pe_image, $subsys_offset, $major_subsys) if ($major_subsys);
+	&set_version(\$pe_image, $subsys_offset+2, $minor_subsys) if ($minor_subsys);
 	&write_file($output, $pe_image);
 } else {
 	# Get the versions
-	my($major_os, $minor_os) = unpack("v2", substr($pe_image, $os_offset, 4));
-	my($major_image, $minor_image) = unpack("v2", substr($pe_image, $image_offset, 4));
-	my($major_subsys, $minor_subsys) = unpack("v2", substr($pe_image, $subsys_offset, 4));
+	($major_os, $minor_os) = unpack("v2", substr($pe_image, $os_offset, 4));
+	($major_image, $minor_image) = unpack("v2", substr($pe_image, $image_offset, 4));
+	($major_subsys, $minor_subsys) = unpack("v2", substr($pe_image, $subsys_offset, 4));
 
 	printf "MajorOperatingSystemVersion\t%d\n", $major_os;
 	printf "MinorOperatingSystemVersion\t%d\n", $minor_os;
