@@ -119,7 +119,7 @@ if ($pe_magic == 0x10b) {
 } elsif ($pe_magic == 0x20b) {
 	$pe32plus = 1;
 } else {
-	die "unknown PE header\n"
+	die "unknown PE header\n";
 }
 
 printf "\n";
