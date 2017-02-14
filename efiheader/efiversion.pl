@@ -101,7 +101,7 @@ usage(0) if ($help);
 sub not_ushort($)
 {
 	my ($number) = @_;
-	if ($number and ($number < 0 or $number > 65535)) {
+	if ($number and ($number < 0x0 or $number > 0xFFFF)) {
 		return 1;
 	}
 	return 0;
@@ -175,9 +175,55 @@ my ($file) = @ARGV;
 my $pe_image = read_file($file) if ($file);
 my $e_lfanew = find_header_address($pe_image);
 
-my $os_offset = $e_lfanew+64;
-my $image_offset = $e_lfanew+68;
-my $subsys_offset = $e_lfanew+72;
+# The offset to the Optional Header: $e_lfanew + 24
+#
+# Optional Header for PE32+
+#   UINT16  Magic;
+#   UINT8   MajorLinkerVersion;
+#   UINT8   MinorLinkerVersion;
+#   UINT32  SizeOfCode;
+#   UINT32  SizeOfInitializedData;
+#   UINT32  SizeOfUninitializedData;
+#   UINT32  AddressOfEntryPoint;
+#   UINT32  BaseOfCode;
+#   UINT64  ImageBase;
+#   UINT32  SectionAlignment;
+#   UINT32  FileAlignment;
+#
+# -- 40 bytes --
+#
+#   UINT16  MajorOperatingSystemVersion;
+#   UINT16  MinorOperatingSystemVersion;
+#   UINT16  MajorImageVersion;
+#   UINT16  MinorImageVersion;
+#   UINT16  MajorSubsystemVersion;
+#   UINT16  MinorSubsystemVersion;
+#
+# Optional Header for PE32
+#   UINT16  Magic;
+#   UINT8   MajorLinkerVersion;
+#   UINT8   MinorLinkerVersion;
+#   UINT32  SizeOfCode;
+#   UINT32  SizeOfInitializedData;
+#   UINT32  SizeOfUninitializedData;
+#   UINT32  AddressOfEntryPoint;
+#   UINT32  BaseOfCode;
+#   UINT32  BaseOfData;
+#   UINT32  ImageBase;
+#   UINT32  SectionAlignment;
+#   UINT32  FileAlignment;
+#
+# -- 40 bytes --
+#
+#   UINT16  MajorOperatingSystemVersion;
+#   UINT16  MinorOperatingSystemVersion;
+#   UINT16  MajorImageVersion;
+#   UINT16  MinorImageVersion;
+#   UINT16  MajorSubsystemVersion;
+#   UINT16  MinorSubsystemVersion;
+my $os_offset = $e_lfanew + 24 + 40;
+my $image_offset = $os_offset + 4;
+my $subsys_offset = $image_offset + 4;
 
 if ($output) {
 	# Write the file
@@ -194,10 +240,10 @@ if ($output) {
 	($major_image, $minor_image) = unpack("v2", substr($pe_image, $image_offset, 4));
 	($major_subsys, $minor_subsys) = unpack("v2", substr($pe_image, $subsys_offset, 4));
 
-	printf "MajorOperatingSystemVersion\t%d\n", $major_os;
-	printf "MinorOperatingSystemVersion\t%d\n", $minor_os;
-	printf "MajorImageVersion\t\t%d\n",         $major_image;
-	printf "MinorImageVersion\t\t%d\n",         $minor_image;
-	printf "MajorSubSystemVersion\t\t%d\n",     $major_subsys;
-	printf "MajorSubSystemVersion\t\t%d\n",     $minor_subsys;
+	printf "MajorOperatingSystemVersion\t0x%X\n", $major_os;
+	printf "MinorOperatingSystemVersion\t0x%X\n", $minor_os;
+	printf "MajorImageVersion\t\t0x%X\n",         $major_image;
+	printf "MinorImageVersion\t\t0x%X\n",         $minor_image;
+	printf "MajorSubSystemVersion\t\t0x%X\n",     $major_subsys;
+	printf "MajorSubSystemVersion\t\t0x%X\n",     $minor_subsys;
 }
