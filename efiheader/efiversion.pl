@@ -36,10 +36,6 @@ assign the major subsystem version
 
 assign the minor subsystem version
 
-=item B<--output=FILE, -o FILE>
-
-write the result to the file
-
 =item B<--help, -h>
 
 print help
@@ -54,7 +50,7 @@ Show the versions:
 $ efiversion.pl sample.efi
 
 Modify the versions:
-$ efiversion.pl --major-os=1 --minor-os=2 -o out.efi sample.efi
+$ efiversion.pl --major-os=1 --minor-os=2 sample.efi
 
 =cut
 
@@ -81,8 +77,8 @@ my $major_image = '';
 my $minor_image = '';
 my $major_subsys = '';
 my $minor_subsys = '';
-my $output = '';
 my $help = '';
+my $overwrite = '';
 
 GetOptions(
 	"major-os=o" => \$major_os,
@@ -91,7 +87,6 @@ GetOptions(
 	"minor-image=o" => \$minor_image,
 	"major-subsys=o" => \$major_subsys,
 	"minor-subsys=o" => \$minor_subsys,
-	"output=s" => \$output,
 	"help|h" => \$help,
 ) or usage(1);
 
@@ -101,9 +96,12 @@ usage(0) if ($help);
 sub not_ushort($)
 {
 	my ($number) = @_;
-	if ($number and ($number < 0x0 or $number > 0xFFFF)) {
-		return 1;
-	}
+
+	return 0 unless $number;
+	return 1 if ($number < 0 or $number > 0xFFFF);
+
+	$overwrite = "y";
+
 	return 0;
 }
 
@@ -140,14 +138,14 @@ sub find_header_address($)
 	my ($image) = @_;
 
 	# e_magic must be 'M''Z'
-	my ($e_magic) = unpack("v", substr($image, 0, 2));
-	die "not a EFI Image\n" unless ($e_magic == 0x5A4D);
+	my ($e_magic) = unpack("n", substr($image, 0, 2));
+	die "not a EFI Image\n" unless ($e_magic == 0x4D5A);
 
 	my ($e_lfanew) = unpack("V", substr($image, 60, 4));
 
 	# Match Signature 'P''E''\0''\0'
-	my ($Signature) = unpack("V", substr($image, $e_lfanew, 4));
-	die "not a PE Image\n" unless ($Signature == 0x4550);
+	my ($Signature) = unpack("N", substr($image, $e_lfanew, 4));
+	die "not a PE Image\n" unless ($Signature == 0x50450000);
 
 	return $e_lfanew;
 }
@@ -225,7 +223,7 @@ my $os_offset = $e_lfanew + 24 + 40;
 my $image_offset = $os_offset + 4;
 my $subsys_offset = $image_offset + 4;
 
-if ($output) {
+if ($overwrite) {
 	# Write the file
 	&set_version(\$pe_image, $os_offset, $major_os) if ($major_os);
 	&set_version(\$pe_image, $os_offset+2, $minor_os) if ($minor_os);
@@ -233,7 +231,7 @@ if ($output) {
 	&set_version(\$pe_image, $image_offset+2, $minor_image) if ($minor_image);
 	&set_version(\$pe_image, $subsys_offset, $major_subsys) if ($major_subsys);
 	&set_version(\$pe_image, $subsys_offset+2, $minor_subsys) if ($minor_subsys);
-	&write_file($output, $pe_image);
+	&write_file($file, $pe_image);
 } else {
 	# Get the versions
 	($major_os, $minor_os) = unpack("v2", substr($pe_image, $os_offset, 4));
