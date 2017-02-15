@@ -88,8 +88,8 @@ sub check_args
 	die "Security version not specified\n" if !$sv;
 
 	die "Signer has to be a 4 character string\n" if length($signer) != 4;
-	die "invalid distro version\n" if $dv < 0 or $dv > 65535;
-	die "invalid security version\n" if $sv < 0 or $sv > 65535;
+	die "invalid distro version\n" if $dv < 0 or $dv > 0xFFFF;
+	die "invalid security version\n" if $sv < 0 or $sv > 0xFFFF;
 }
 
 sub read_file($)
@@ -114,14 +114,14 @@ sub find_header_address($)
 	my ($image) = @_;
 
 	# e_magic must be 'M''Z'
-	my ($e_magic) = unpack("v", substr($image, 0, 2));
-	die "not a EFI Image\n" unless ($e_magic == 0x5A4D);
+	my ($e_magic) = unpack("n", substr($image, 0, 2));
+	die "not a EFI Image\n" unless ($e_magic == 0x4D5A);
 
 	my ($e_lfanew) = unpack("V", substr($image, 60, 4));
 
 	# Match Signature 'P''E''\0''\0'
-	my ($Signature) = unpack("V", substr($image, $e_lfanew, 4));
-	die "not a PE Image\n" unless ($Signature == 0x4550);
+	my ($Signature) = unpack("N", substr($image, $e_lfanew, 4));
+	die "not a PE Image\n" unless ($Signature == 0x50450000);
 
 	return $e_lfanew;
 }
