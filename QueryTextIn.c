@@ -11,19 +11,20 @@ efi_pause ()
 }
 
 EFI_STATUS
-print_handle_devpath (EFI_HANDLE Handle)
+print_handle (EFI_HANDLE Handle)
 {
 	EFI_DEVICE_PATH *devpath;
 	CHAR16 *path_str = NULL;
 
-	devpath = DevicePathFromHandle (Handle);
+	Print (L"Handle: %x\n", Handle);
 
+	devpath = DevicePathFromHandle (Handle);
 	if (devpath) {
 		path_str = DevicePathToStr (devpath);
-		Print (L"%x: %s\n", Handle, path_str);
+		Print (L"  %s\n", path_str);
 		FreePool (path_str);
 	} else {
-		Print (L"%x: NULL\n", Handle);
+		Print (L"  NULL\n");
 	}
 
 	return EFI_SUCCESS;
@@ -44,8 +45,10 @@ show_by_protocol (EFI_GUID *protocol)
 		return rc;
 	}
 
-	for (i = 0; i < NoHandles; i++)
-		print_handle_devpath (Handles[i]);
+	for (i = 0; i < NoHandles; i++) {
+		print_handle (Handles[i]);
+		Print (L"\n");
+	}
 
 	return EFI_SUCCESS;
 }
