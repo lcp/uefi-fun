@@ -133,7 +133,7 @@ sub read_file($)
 	return $contents;
 }
 
-sub find_header_address($)
+sub get_signature_offset($)
 {
 	my ($image) = @_;
 
@@ -141,7 +141,8 @@ sub find_header_address($)
 	my ($e_magic) = unpack("n", substr($image, 0, 2));
 	die "not a EFI Image\n" unless ($e_magic == 0x4D5A);
 
-	my ($e_lfanew) = unpack("V", substr($image, 60, 4));
+	# Get the offset to the PE signature
+	my ($e_lfanew) = unpack("V", substr($image, 0x3C, 4));
 
 	# Match Signature 'P''E''\0''\0'
 	my ($Signature) = unpack("N", substr($image, $e_lfanew, 4));
@@ -171,77 +172,41 @@ die "invalid arguments\n" unless check_args;
 
 my ($file) = @ARGV;
 my $pe_image = read_file($file) if ($file);
-my $e_lfanew = find_header_address($pe_image);
+my $e_lfanew = get_signature_offset($pe_image);
 
-# The offset to the Optional Header: $e_lfanew + 24
+# [PE Signature][COFF File Header][Optional Header]
+#     4 bytes        20 bytes
 #
-# Optional Header for PE32+
-#   UINT16  Magic;
-#   UINT8   MajorLinkerVersion;
-#   UINT8   MinorLinkerVersion;
-#   UINT32  SizeOfCode;
-#   UINT32  SizeOfInitializedData;
-#   UINT32  SizeOfUninitializedData;
-#   UINT32  AddressOfEntryPoint;
-#   UINT32  BaseOfCode;
-#   UINT64  ImageBase;
-#   UINT32  SectionAlignment;
-#   UINT32  FileAlignment;
+# The offset of MajorOperatingSystemVersion in the Optional Header: 40
 #
-# -- 40 bytes --
+# The file offset of MajorOperatingSystemVersion: $e_lfanew + 24 + 40
 #
+# Our targets:
 #   UINT16  MajorOperatingSystemVersion;
 #   UINT16  MinorOperatingSystemVersion;
 #   UINT16  MajorImageVersion;
 #   UINT16  MinorImageVersion;
 #   UINT16  MajorSubsystemVersion;
 #   UINT16  MinorSubsystemVersion;
-#
-# Optional Header for PE32
-#   UINT16  Magic;
-#   UINT8   MajorLinkerVersion;
-#   UINT8   MinorLinkerVersion;
-#   UINT32  SizeOfCode;
-#   UINT32  SizeOfInitializedData;
-#   UINT32  SizeOfUninitializedData;
-#   UINT32  AddressOfEntryPoint;
-#   UINT32  BaseOfCode;
-#   UINT32  BaseOfData;
-#   UINT32  ImageBase;
-#   UINT32  SectionAlignment;
-#   UINT32  FileAlignment;
-#
-# -- 40 bytes --
-#
-#   UINT16  MajorOperatingSystemVersion;
-#   UINT16  MinorOperatingSystemVersion;
-#   UINT16  MajorImageVersion;
-#   UINT16  MinorImageVersion;
-#   UINT16  MajorSubsystemVersion;
-#   UINT16  MinorSubsystemVersion;
-my $os_offset = $e_lfanew + 24 + 40;
-my $image_offset = $os_offset + 4;
-my $subsys_offset = $image_offset + 4;
+my $os_offset = $e_lfanew + 64;
 
 if ($overwrite) {
 	# Write the file
-	&set_version(\$pe_image, $os_offset, $major_os) if ($major_os);
-	&set_version(\$pe_image, $os_offset+2, $minor_os) if ($minor_os);
-	&set_version(\$pe_image, $image_offset, $major_image) if ($major_image);
-	&set_version(\$pe_image, $image_offset+2, $minor_image) if ($minor_image);
-	&set_version(\$pe_image, $subsys_offset, $major_subsys) if ($major_subsys);
-	&set_version(\$pe_image, $subsys_offset+2, $minor_subsys) if ($minor_subsys);
+	&set_version(\$pe_image, $os_offset,      $major_os)     if ($major_os);
+	&set_version(\$pe_image, $os_offset + 2,  $minor_os)     if ($minor_os);
+	&set_version(\$pe_image, $os_offset + 4,  $major_image)  if ($major_image);
+	&set_version(\$pe_image, $os_offset + 6,  $minor_image)  if ($minor_image);
+	&set_version(\$pe_image, $os_offset + 8,  $major_subsys) if ($major_subsys);
+	&set_version(\$pe_image, $os_offset + 10, $minor_subsys) if ($minor_subsys);
 	&write_file($file, $pe_image);
 } else {
 	# Get the versions
-	($major_os, $minor_os) = unpack("v2", substr($pe_image, $os_offset, 4));
-	($major_image, $minor_image) = unpack("v2", substr($pe_image, $image_offset, 4));
-	($major_subsys, $minor_subsys) = unpack("v2", substr($pe_image, $subsys_offset, 4));
+	(my @versions) = unpack("v6", substr($pe_image, $os_offset, 12));
 
-	printf "MajorOperatingSystemVersion\t0x%X\n", $major_os;
-	printf "MinorOperatingSystemVersion\t0x%X\n", $minor_os;
-	printf "MajorImageVersion\t\t0x%X\n",         $major_image;
-	printf "MinorImageVersion\t\t0x%X\n",         $minor_image;
-	printf "MajorSubSystemVersion\t\t0x%X\n",     $major_subsys;
-	printf "MajorSubSystemVersion\t\t0x%X\n",     $minor_subsys;
+	printf "MajorOperatingSystemVersion\t0x%X\n", $versions[0];
+	printf "MinorOperatingSystemVersion\t0x%X\n", $versions[1];
+	printf "MajorImageVersion\t\t0x%X\n",         $versions[2];
+	printf "MinorImageVersion\t\t0x%X\n",         $versions[3];
+	printf "MajorSubSystemVersion\t\t0x%X\n",     $versions[4];
+	printf "MajorSubSystemVersion\t\t0x%X\n",     $versions[5];
 }
