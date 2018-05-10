@@ -1,4 +1,4 @@
-EFIFILES = WriteMok.efi
+EFIFILES = WriteMok.efi WriteMok2.efi
 
 export TOPDIR	:= $(shell pwd)/
 
