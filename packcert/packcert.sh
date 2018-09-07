@@ -1,7 +1,9 @@
 #!/bin/bash
+# Pack a given certificate into an initrd
+# Mainly for HTTPS Boot in SLE/openSUSE
 
 if [ "$1" == "" ] || [ "$2" == "" ]; then
-	echo "Usage $0 cert.pem out.img"
+	echo "Usage $0 cert.pem ssl.img"
 	exit 0
 fi
 CERT_FILE=$1
