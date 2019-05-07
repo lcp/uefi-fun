@@ -32,10 +32,9 @@ do
 done
 
 # Go to the root and create the image
-CWD=`pwd`
-cd $TMP_ROOT
+pushd $TMP_ROOT
 find . | cpio --quiet -H newc -o | gzip -9 -n > $OUTPUT
-cd $CWD
+popd
 
 # Remove the root dir
 rm -rf $TMP_ROOT
